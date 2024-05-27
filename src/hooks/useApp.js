@@ -9,6 +9,7 @@ import {
   getDoc,
   updateDoc,
   deleteDoc,
+  setDoc
 } from "firebase/firestore";
 import { db } from "../firebase";
 import { getAuth } from "firebase/auth";
@@ -25,9 +26,13 @@ const useApp = () => {
 
   const deleteBoard = async (boardId) => {
     try {
-      // delete the doc from the DB
-      const docRef = doc(db, `users/${uid}/boards/${boardId}`);
-      await deleteDoc(docRef);
+      // delete the board document
+      const boardDocRef = doc(db, `users/${uid}/boards/${boardId}`);
+      await deleteDoc(boardDocRef);
+
+      // delete the associated boardsData document
+      const boardDataDocRef = doc(db, `users/${uid}/boardsData/${boardId}`);
+      await deleteDoc(boardDataDocRef);
 
       // update the boards in the store
       const tBoards = boards.filter((board) => board.id !== boardId);
@@ -66,17 +71,28 @@ const useApp = () => {
 
   const createBoard = async ({ name, color }) => {
     try {
-      const doc = await addDoc(boardsColRef, {
+      const boardDoc = await addDoc(boardsColRef, {
         name,
         color,
         createdAt: serverTimestamp(),
+      });
+
+      // Create the associated boardsData document
+      const boardDataDocRef = doc(db, `users/${uid}/boardsData/${boardDoc.id}`);
+      await setDoc(boardDataDocRef, {
+        tabs: {
+          todos: [],
+          inProgress: [],
+          completed: [],
+        },
+        lastUpdated: serverTimestamp(),
       });
 
       addBoard({
         name,
         color,
         createdAt: new Date().toLocaleString("en-US"),
-        id: doc.id,
+        id: boardDoc.id,
       });
     } catch (err) {
       setToastr("Error creating board");
